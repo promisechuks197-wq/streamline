@@ -22,9 +22,9 @@ const getBadgeStyles = (badge) => {
 };
 
 export default function ProductCard({ product }) {
-  const { addToCart } = useCart();
+  const { addItem } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const { showToast } = useToast();
+  const { addToast } = useToast();
   const [selectedSize, setSelectedSize] = useState(null);
 
   const {
@@ -51,7 +51,7 @@ export default function ProductCard({ product }) {
     e.preventDefault();
     e.stopPropagation();
     toggleWishlist(product);
-    showToast(
+    addToast(
       inWishlist ? `${name} removed from wishlist` : `${name} added to wishlist`
     );
   };
@@ -61,10 +61,11 @@ export default function ProductCard({ product }) {
     e.stopPropagation();
     const size = selectedSize || (sizes && sizes.length > 0 ? sizes[0] : null);
     if (size) {
-      addToCart({ ...product, selectedSize: size, quantity: 1 });
-      showToast(`${name} (${size}) added to cart`);
+      addItem(product, size, null, 1);
+      addToast(`${name} (${size}) added to cart`);
     } else {
-      showToast(`${name} added to cart`);
+      addItem(product, null, null, 1);
+      addToast(`${name} added to cart`);
     }
   };
 

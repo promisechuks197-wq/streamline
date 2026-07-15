@@ -136,7 +136,7 @@ export default function Cart() {
               <AnimatePresence mode="popLayout">
                 {items.map((item, index) => (
                   <motion.div
-                    key={item.id || `${item.productId}-${item.color}-${item.size}`}
+                    key={item.cartId}
                     layout
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -175,7 +175,7 @@ export default function Cart() {
                           </div>
 
                           <button
-                            onClick={() => removeItem(item.id || item.productId)}
+                            onClick={() => removeItem(item.cartId)}
                             className="flex-shrink-0 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                           >
                             <Trash2 className="w-5 h-5" />
@@ -186,7 +186,7 @@ export default function Cart() {
                           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                             <button
                               onClick={() =>
-                                updateQuantity(item.id || item.productId, item.quantity - 1)
+                                updateQuantity(item.cartId, item.quantity - 1)
                               }
                               disabled={item.quantity <= 1}
                               className="px-3 py-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -198,7 +198,7 @@ export default function Cart() {
                             </span>
                             <button
                               onClick={() =>
-                                updateQuantity(item.id || item.productId, item.quantity + 1)
+                                updateQuantity(item.cartId, item.quantity + 1)
                               }
                               className="px-3 py-2 hover:bg-gray-50 transition-colors"
                             >

@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lock, CreditCard, Truck, Check, ChevronRight, MapPin, Shield, ArrowLeft } from 'lucide-react';
+import { Lock, CreditCard, Truck, Check, ChevronRight, MapPin, Shield, ArrowLeft, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
+import { StripeProvider } from '../config/stripe';
+import CheckoutForm from '../components/CheckoutForm';
 import Breadcrumb from '../components/Breadcrumb';
 
 const STEPS = [
@@ -40,6 +42,10 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const [selectedShipping, setSelectedShipping] = useState('standard');
 
+  const [clientSecret, setClientSecret] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+
   const [form, setForm] = useState({
     email: '',
     firstName: '',
@@ -52,16 +58,40 @@ export default function Checkout() {
     country: 'United States',
     phone: '',
     saveInfo: false,
-    cardNumber: '',
-    cardName: '',
-    expiry: '',
-    cvv: '',
   });
 
   const shippingCost = SHIPPING_METHODS.find((m) => m.id === selectedShipping)?.price || 0;
   const taxEstimate = total * 0.08;
   const promoDiscount = promoApplied ? total * 0.1 : 0;
   const orderTotal = total + shippingCost + taxEstimate - promoDiscount;
+
+  useEffect(() => {
+    if (currentStep === 3 && paymentMethod === 'credit' && !clientSecret) {
+      createPaymentIntent();
+    }
+  }, [currentStep, paymentMethod]);
+
+  const createPaymentIntent = async () => {
+    try {
+      setPaymentLoading(true);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/create-payment-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: Math.round(orderTotal * 100),
+          currency: 'usd',
+          metadata: { items: items.length.toString() },
+        }),
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      setClientSecret(data.clientSecret);
+    } catch (err) {
+      setPaymentError(err.message);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -86,12 +116,6 @@ export default function Checkout() {
       if (!form.zip.trim()) newErrors.zip = 'ZIP code is required';
       if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
     }
-    if (step === 3 && paymentMethod === 'credit') {
-      if (!form.cardNumber.trim()) newErrors.cardNumber = 'Card number is required';
-      if (!form.cardName.trim()) newErrors.cardName = 'Cardholder name is required';
-      if (!form.expiry.trim()) newErrors.expiry = 'Expiry date is required';
-      if (!form.cvv.trim()) newErrors.cvv = 'CVV is required';
-    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -107,7 +131,6 @@ export default function Checkout() {
   };
 
   const handlePlaceOrder = () => {
-    if (!validateStep(3)) return;
     setOrderNumber(generateOrderNumber());
     setOrderPlaced(true);
     setCurrentStep(4);
@@ -215,7 +238,7 @@ export default function Checkout() {
                 Continue Shopping
               </Link>
               <Link
-                to="/account/orders"
+                to="/account"
                 className="px-8 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-center"
               >
                 View Orders
@@ -451,37 +474,26 @@ export default function Checkout() {
 
                   {paymentMethod === 'credit' ? (
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            name="cardNumber"
-                            value={form.cardNumber}
-                            onChange={handleChange}
-                            placeholder="1234 5678 9012 3456"
-                            maxLength={19}
-                            className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition ${
-                              errors.cardNumber ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                          />
-                          <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      {paymentLoading ? (
+                        <div className="flex flex-col items-center justify-center py-12">
+                          <Loader2 className="w-8 h-8 text-brand-500 animate-spin mb-4" />
+                          <p className="text-gray-500">Preparing secure payment...</p>
                         </div>
-                        {errors.cardNumber && (
-                          <p className="text-red-500 text-xs mt-1">{errors.cardNumber}</p>
-                        )}
-                      </div>
-
-                      <InputField
-                        label="Cardholder Name"
-                        name="cardName"
-                        placeholder="John Doe"
-                      />
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Expiry Date" name="expiry" placeholder="MM/YY" />
-                        <InputField label="CVV" name="cvv" placeholder="123" />
-                      </div>
+                      ) : paymentError ? (
+                        <div className="text-center py-12">
+                          <p className="text-red-500 mb-4">{paymentError}</p>
+                          <button
+                            onClick={createPaymentIntent}
+                            className="px-6 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition"
+                          >
+                            Try Again
+                          </button>
+                        </div>
+                      ) : clientSecret ? (
+                        <StripeProvider clientSecret={clientSecret}>
+                          <CheckoutForm onSuccess={handlePlaceOrder} />
+                        </StripeProvider>
+                      ) : null}
                     </div>
                   ) : (
                     <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
@@ -492,7 +504,10 @@ export default function Checkout() {
                       <p className="text-sm text-gray-400 mb-4">
                         You will be redirected to PayPal to complete your purchase
                       </p>
-                      <button className="px-8 py-3 bg-[#0070ba] text-white font-semibold rounded-lg hover:bg-[#005ea6] transition">
+                      <button
+                        onClick={handlePlaceOrder}
+                        className="px-8 py-3 bg-[#0070ba] text-white font-semibold rounded-lg hover:bg-[#005ea6] transition"
+                      >
                         Continue with PayPal
                       </button>
                     </div>
@@ -512,13 +527,6 @@ export default function Checkout() {
                     >
                       <ArrowLeft className="w-4 h-4" />
                       Back
-                    </button>
-                    <button
-                      onClick={handlePlaceOrder}
-                      className="flex-1 bg-brand-500 text-white font-semibold py-3 rounded-lg hover:bg-brand-600 transition flex items-center justify-center gap-2"
-                    >
-                      <Lock className="w-4 h-4" />
-                      Place Order
                     </button>
                   </div>
                 </motion.div>
@@ -617,15 +625,7 @@ export default function Checkout() {
           <span className="text-sm text-gray-500">Total</span>
           <span className="text-lg font-bold text-gray-900">${orderTotal.toFixed(2)}</span>
         </div>
-        {currentStep === 3 ? (
-          <button
-            onClick={handlePlaceOrder}
-            className="w-full bg-brand-500 text-white font-semibold py-3 rounded-lg hover:bg-brand-600 transition flex items-center justify-center gap-2"
-          >
-            <Lock className="w-4 h-4" />
-            Place Order
-          </button>
-        ) : (
+        {currentStep === 3 ? null : (
           <button
             onClick={handleNext}
             className="w-full bg-brand-500 text-white font-semibold py-3 rounded-lg hover:bg-brand-600 transition flex items-center justify-center gap-2"

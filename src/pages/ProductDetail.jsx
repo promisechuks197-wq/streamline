@@ -69,9 +69,9 @@ const tabLabels = ['Description', 'Features', 'Reviews'];
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { addItem } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
-  const { showToast } = useToast();
+  const { addToast } = useToast();
 
   const product = products.find((p) => p.id === id || p.id === Number(id));
 
@@ -153,47 +153,36 @@ export default function ProductDetail() {
   const isInStock = product.inStock !== false;
 
   const breadcrumbItems = [
-    { label: 'Home', href: '/' },
-    { label: 'Shop', href: '/shop' },
-    { label: product.category, href: `/shop?category=${product.category}` },
+    { label: 'Home', path: '/' },
+    { label: 'Shop', path: '/shop' },
+    { label: product.category, path: `/shop?category=${product.category}` },
     { label: product.name },
   ];
 
   const handleAddToCart = () => {
     if (!selectedSize) {
-      showToast('Please select a size', 'warning');
+      addToast('Please select a size', 'error');
       return;
     }
-    for (let i = 0; i < quantity; i++) {
-      addToCart({
-        ...product,
-        selectedSize,
-        selectedColor: colors[selectedColor]?.name,
-      });
-    }
-    showToast(`${product.name} added to cart!`, 'success');
+    addItem(product, selectedSize, colors[selectedColor]?.name, quantity);
+    addToast(`${product.name} added to cart!`, 'success');
   };
 
   const handleBuyNow = () => {
     if (!selectedSize) {
-      showToast('Please select a size', 'warning');
+      addToast('Please select a size', 'error');
       return;
     }
-    addToCart({
-      ...product,
-      selectedSize,
-      selectedColor: colors[selectedColor]?.name,
-      quantity,
-    });
+    addItem(product, selectedSize, colors[selectedColor]?.name, quantity);
     navigate('/checkout');
   };
 
   const handleWishlist = () => {
     toggleWishlist(product);
     if (isInWishlist(product.id)) {
-      showToast('Removed from wishlist', 'info');
+      addToast('Removed from wishlist', 'info');
     } else {
-      showToast('Added to wishlist', 'success');
+      addToast('Added to wishlist', 'success');
     }
   };
 
@@ -655,7 +644,7 @@ export default function ProductDetail() {
             <button
               onClick={() => {
                 navigator.clipboard.writeText(window.location.href);
-                showToast('Link copied to clipboard!', 'success');
+                addToast('Link copied to clipboard!', 'success');
                 setShowShareModal(false);
               }}
               className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors text-left"

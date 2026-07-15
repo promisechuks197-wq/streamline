@@ -2,13 +2,16 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, User } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 export default function Register() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const [agreed, setAgreed] = useState(false)
   const navigate = useNavigate()
+  const { register } = useAuth()
 
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -16,14 +19,31 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
+
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match')
+      setError('Passwords do not match')
       return
     }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
     setIsLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
-    setIsLoading(false)
-    navigate('/account')
+    try {
+      await register(formData.name, formData.email, formData.password)
+      navigate('/account')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = () => {
+    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/google`
   }
 
   return (
@@ -44,6 +64,12 @@ export default function Register() {
         </div>
 
         <div className="bg-white dark:bg-dark-900 rounded-2xl shadow-card p-8">
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium mb-2">Full Name</label>
@@ -89,7 +115,7 @@ export default function Register() {
                   placeholder="••••••••"
                   className="input-field pl-12 pr-12"
                   required
-                  minLength={8}
+                  minLength={6}
                 />
                 <button
                   type="button"
@@ -99,7 +125,7 @@ export default function Register() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              <p className="text-xs text-dark-500 mt-1">Must be at least 8 characters</p>
+              <p className="text-xs text-dark-500 mt-1">Must be at least 6 characters</p>
             </div>
 
             <div>
@@ -159,7 +185,10 @@ export default function Register() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center gap-2 py-3 px-4 border border-dark-200 dark:border-dark-700 rounded-xl hover:bg-dark-50 dark:hover:bg-dark-800 transition-colors font-medium text-sm">
+            <button
+              onClick={handleGoogleLogin}
+              className="flex items-center justify-center gap-2 py-3 px-4 border border-dark-200 dark:border-dark-700 rounded-xl hover:bg-dark-50 dark:hover:bg-dark-800 transition-colors font-medium text-sm"
+            >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>

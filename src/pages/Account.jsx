@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { useAuth } from '../context/AuthContext';
 
 const orders = [
   {
@@ -103,13 +104,14 @@ export default function Account() {
   const [view, setView] = useState('orders');
   const [showLogout, setShowLogout] = useState(false);
   const navigate = useNavigate();
-  const { addToCart } = useCart();
-  const { wishlist, removeFromWishlist } = useWishlist();
+  const { addItem } = useCart();
+  const { items: wishlist, toggleWishlist } = useWishlist();
+  const { user, logout, updateProfile, changePassword } = useAuth();
 
   const [profile, setProfile] = useState({
-    name: 'John Doe',
-    email: 'john@example.com',
-    phone: '(555) 123-4567',
+    name: '',
+    email: '',
+    phone: '',
   });
 
   const [passwords, setPasswords] = useState({
@@ -128,13 +130,79 @@ export default function Account() {
     orderUpdates: true,
   });
 
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [profileMsg, setProfileMsg] = useState({ type: '', text: '' });
+  const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
+
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+      });
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user && !showLogout) {
+      navigate('/login');
+    }
+  }, [user, navigate, showLogout]);
+
   const toggleNotif = (key) =>
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const handleLogout = () => {
     setShowLogout(false);
+    logout();
     navigate('/');
   };
+
+  const handleProfileSave = async (e) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    setProfileMsg({ type: '', text: '' });
+    try {
+      await updateProfile({ name: profile.name, phone: profile.phone });
+      setProfileMsg({ type: 'success', text: 'Profile updated successfully' });
+    } catch (err) {
+      setProfileMsg({ type: 'error', text: err.message });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPasswordMsg({ type: '', text: '' });
+
+    if (passwords.newPass !== passwords.confirm) {
+      setPasswordMsg({ type: 'error', text: 'New passwords do not match' });
+      return;
+    }
+
+    if (passwords.newPass.length < 6) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters' });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await changePassword(passwords.current, passwords.newPass);
+      setPasswordMsg({ type: 'success', text: 'Password updated successfully' });
+      setPasswords({ current: '', newPass: '', confirm: '' });
+    } catch (err) {
+      setPasswordMsg({ type: 'error', text: err.message });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const userInitials = user?.name
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'U';
 
   const renderOrders = () => (
     <div>
@@ -167,7 +235,7 @@ export default function Account() {
                   className="flex justify-between py-2 text-sm text-gray-700"
                 >
                   <span>
-                    {item.name} (Size {item.size}) × {item.qty}
+                    {item.name} (Size {item.size}) x {item.qty}
                   </span>
                   <span>${item.price.toFixed(2)}</span>
                 </div>
@@ -285,7 +353,7 @@ export default function Account() {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <button
-                  onClick={() => removeFromWishlist(item.id)}
+                  onClick={() => toggleWishlist(item)}
                   className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-sm hover:bg-red-50 hover:text-red-500 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -306,8 +374,8 @@ export default function Account() {
                 </p>
                 <button
                   onClick={() => {
-                    addToCart(item);
-                    removeFromWishlist(item.id);
+                    addItem(item, item.sizes?.[0] || null, item.colors?.[0]?.name || null, 1);
+                    toggleWishlist(item);
                   }}
                   className="w-full bg-brand-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-brand-600 transition-colors flex items-center justify-center gap-2"
                 >
@@ -334,53 +402,64 @@ export default function Account() {
             <User className="w-5 h-5 text-gray-500" />
             Profile Information
           </h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={profile.name}
-                onChange={(e) =>
-                  setProfile((p) => ({ ...p, name: e.target.value }))
-                }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              />
+
+          {profileMsg.text && (
+            <div className={`mb-4 p-3 rounded-lg text-sm ${profileMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {profileMsg.text}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          )}
+
+          <form onSubmit={handleProfileSave}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
+                </label>
                 <input
-                  type="email"
-                  value={profile.email}
+                  type="text"
+                  value={profile.name}
                   onChange={(e) =>
-                    setProfile((p) => ({ ...p, email: e.target.value }))
+                    setProfile((p) => ({ ...p, name: e.target.value }))
                   }
-                  className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="email"
+                    value={profile.email}
+                    disabled
+                    className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={profile.phone}
+                  onChange={(e) =>
+                    setProfile((p) => ({ ...p, phone: e.target.value }))
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone
-              </label>
-              <input
-                type="tel"
-                value={profile.phone}
-                onChange={(e) =>
-                  setProfile((p) => ({ ...p, phone: e.target.value }))
-                }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          <button className="mt-4 bg-brand-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-600 transition-colors">
-            Save Changes
-          </button>
+            <button
+              type="submit"
+              disabled={profileLoading}
+              className="mt-4 bg-brand-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-brand-600 transition-colors disabled:opacity-50"
+            >
+              {profileLoading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </form>
         </div>
       </div>
 
@@ -389,7 +468,14 @@ export default function Account() {
           <Lock className="w-5 h-5 text-gray-500" />
           Change Password
         </h3>
-        <div className="space-y-4 max-w-md">
+
+        {passwordMsg.text && (
+          <div className={`mb-4 p-3 rounded-lg text-sm ${passwordMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+            {passwordMsg.text}
+          </div>
+        )}
+
+        <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Current Password
@@ -471,10 +557,14 @@ export default function Account() {
               </button>
             </div>
           </div>
-          <button className="bg-gray-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
-            Update Password
+          <button
+            type="submit"
+            disabled={passwordLoading}
+            className="bg-gray-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
+          >
+            {passwordLoading ? 'Updating...' : 'Update Password'}
           </button>
-        </div>
+        </form>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -513,6 +603,8 @@ export default function Account() {
     settings: renderSettings,
   };
 
+  if (!user) return null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -529,14 +621,18 @@ export default function Account() {
           <aside className="hidden lg:block w-64 shrink-0">
             <div className="bg-white rounded-xl border border-gray-200 p-4 sticky top-24">
               <div className="flex items-center gap-3 px-3 py-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm">
-                  JD
-                </div>
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm">
+                    {userInitials}
+                  </div>
+                )}
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">
-                    {profile.name}
+                    {user.name}
                   </p>
-                  <p className="text-xs text-gray-500">{profile.email}</p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
               </div>
 

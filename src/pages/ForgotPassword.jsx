@@ -2,18 +2,27 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const { forgotPassword } = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
     setIsLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
-    setIsLoading(false)
-    setIsSubmitted(true)
+    try {
+      await forgotPassword(email)
+      setIsSubmitted(true)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -58,6 +67,12 @@ export default function ForgotPassword() {
                   Enter your email and we'll send you a reset link
                 </p>
               </div>
+
+              {error && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>

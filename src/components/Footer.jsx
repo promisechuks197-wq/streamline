@@ -8,7 +8,7 @@ const shopLinks = [
   { name: 'Kids', path: '/kids' },
   { name: 'New Arrivals', path: '/new-arrivals' },
   { name: 'Sale', path: '/sale' },
-  { name: 'Best Sellers', path: '/best-sellers' },
+  { name: 'Best Sellers', path: '/shop' },
 ];
 
 const helpLinks = [
@@ -162,7 +162,7 @@ export default function Footer() {
       <div className="border-t border-dark-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-gray-500 text-sm">&copy; 2024 StreamLined. All rights reserved.</p>
+            <p className="text-gray-500 text-sm">&copy; 2025 StreamLined. All rights reserved.</p>
             <div className="flex items-center space-x-4 text-gray-500">
               <div className="flex items-center space-x-1.5">
                 <CreditCard className="w-4 h-4" />

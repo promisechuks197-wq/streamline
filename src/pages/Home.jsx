@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
@@ -31,10 +31,19 @@ const staggerContainer = {
 
 const brandNames = ['Nike', 'Adidas', 'New Balance', 'Puma', 'Under Armour'];
 
+const heroSneakers = [
+  'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1600',
+  'https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=1600',
+  'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=1600',
+  'https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=1600',
+  'https://images.unsplash.com/photo-1556906781-9a412961c28c?w=1600',
+  'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?w=1600',
+];
+
 export default function Home() {
-  const navigate = useNavigate();
   const marqueeRef = useRef(null);
   const testimonialsScrollRef = useRef(null);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   const bestSellers = products.slice(0, 4);
   const newArrivals = products.filter((p) => p.isNew);
@@ -69,14 +78,27 @@ export default function Home() {
     return () => cancelAnimationFrame(animationId);
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHeroIndex((prev) => (prev + 1) % heroSneakers.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <main className="overflow-hidden">
       {/* ========== HERO SECTION ========== */}
-      <section className="relative min-h-screen flex items-center justify-center">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1600')" }}
-        />
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {heroSneakers.map((sneaker, i) => (
+          <div
+            key={i}
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000 ease-in-out"
+            style={{
+              backgroundImage: `url('${sneaker}')`,
+              opacity: heroIndex === i ? 1 : 0,
+            }}
+          />
+        ))}
         <div className="absolute inset-0 bg-black/40" />
 
         <div className="container-custom relative z-10 text-center text-white py-20">
@@ -89,7 +111,7 @@ export default function Home() {
               variants={fadeInUp}
               className="inline-block bg-brand-500 text-white text-sm font-medium px-5 py-2 rounded-full mb-6"
             >
-              New Collection 2024
+              New Collection 2025
             </motion.span>
 
             <motion.h1

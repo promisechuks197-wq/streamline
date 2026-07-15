@@ -1,21 +1,49 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { login, isAuthenticated, handleGoogleCallback } = useAuth()
+
+  useEffect(() => {
+    const token = searchParams.get('token')
+    if (token) {
+      handleGoogleCallback(token)
+      navigate('/account', { replace: true })
+    }
+  }, [searchParams, handleGoogleCallback, navigate])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/account', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
     setIsLoading(true)
-    await new Promise(r => setTimeout(r, 1000))
-    setIsLoading(false)
-    navigate('/account')
+    try {
+      await login(email, password)
+      navigate('/account')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = () => {
+    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/google`
   }
 
   return (
@@ -36,6 +64,12 @@ export default function Login() {
         </div>
 
         <div className="bg-white dark:bg-dark-900 rounded-2xl shadow-card p-8">
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium mb-2">Email</label>
@@ -110,7 +144,10 @@ export default function Login() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center gap-2 py-3 px-4 border border-dark-200 dark:border-dark-700 rounded-xl hover:bg-dark-50 dark:hover:bg-dark-800 transition-colors font-medium text-sm">
+            <button
+              onClick={handleGoogleLogin}
+              className="flex items-center justify-center gap-2 py-3 px-4 border border-dark-200 dark:border-dark-700 rounded-xl hover:bg-dark-50 dark:hover:bg-dark-800 transition-colors font-medium text-sm"
+            >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>

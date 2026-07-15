@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useLocation } from 'react-router-dom';
 import { Grid, List, SlidersHorizontal, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
@@ -49,11 +49,21 @@ const filterLabels = {
 
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const initialCategory = searchParams.get('category');
+  
+  const baseGender = location.pathname === '/men' ? 'Men' 
+                   : location.pathname === '/women' ? 'Women' 
+                   : location.pathname === '/kids' ? 'Kids' 
+                   : null;
+  
+  const isSale = location.pathname === '/sale';
+  const isNewArrivals = location.pathname === '/new-arrivals';
 
   const [filters, setFilters] = useState({
     ...defaultFilters,
     categories: initialCategory ? [initialCategory] : [],
+    genders: baseGender ? [baseGender] : [],
   });
   const [viewMode, setViewMode] = useState('grid');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -69,8 +79,23 @@ export default function Shop() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const newBaseGender = location.pathname === '/men' ? 'Men' 
+                        : location.pathname === '/women' ? 'Women' 
+                        : location.pathname === '/kids' ? 'Kids' 
+                        : null;
+                        
+    setFilters((prev) => ({
+      ...prev,
+      genders: newBaseGender ? [newBaseGender] : [],
+    }));
+  }, [location.pathname]);
+
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
+      if (isSale && !(product.originalPrice && product.originalPrice > product.price) && product.badge !== 'Sale') return false;
+      if (isNewArrivals && product.badge !== 'New') return false;
+
       if (
         filters.categories.length > 0 &&
         !filters.categories.includes(product.category)
@@ -117,7 +142,10 @@ export default function Shop() {
   };
 
   const handleClearFilters = () => {
-    setFilters(defaultFilters);
+    setFilters({
+      ...defaultFilters,
+      genders: baseGender ? [baseGender] : [],
+    });
     setSearchParams({});
   };
 
@@ -186,8 +214,8 @@ export default function Shop() {
 
         <div className="flex items-center justify-between pb-6">
           <div>
-            <h1 className="font-display text-3xl font-bold text-dark-900 dark:text-white">
-              Shop All
+            <h1 className="font-display text-3xl font-bold text-dark-900 dark:text-white capitalize">
+              {location.pathname === '/new-arrivals' ? 'New Arrivals' : location.pathname === '/sale' ? 'Sale' : location.pathname.substring(1) || 'Shop All'}
             </h1>
             <p className="mt-1 text-sm text-dark-500 dark:text-gray-400">
               Showing {sortedProducts.length} product{sortedProducts.length !== 1 ? 's' : ''}

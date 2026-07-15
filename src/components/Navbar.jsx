@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Search, User, Heart, ShoppingBag, Sun, Moon } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, Search, User, Heart, ShoppingBag, Sun, Moon, Shield, LogOut, ChevronDown } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 const navLinks = [
   { name: 'Home', path: '/' },
@@ -19,13 +20,26 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { itemCount } = useCart();
   const { items: wishlistItems } = useWishlist();
   const { isDark, toggleTheme } = useTheme();
+  const { user, isAuthenticated, logout } = useAuth();
   const wishlistCount = wishlistItems?.length ?? 0;
 
   const isActive = (path) => location.pathname === path;
+
+  const handleLogout = () => {
+    logout();
+    setUserMenuOpen(false);
+    navigate('/');
+  };
+
+  const userInitials = user?.name
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : '';
 
   return (
     <>
@@ -89,12 +103,77 @@ export default function Navbar() {
               </button>
 
               {/* User */}
-              <button
+              {isAuthenticated ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="hidden sm:flex items-center gap-2 p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
+                    aria-label="Account"
+                  >
+                    {user?.avatar ? (
+                      <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-brand-500 flex items-center justify-center text-white text-xs font-bold">
+                        {userInitials}
+                      </div>
+                    )}
+                    <span className="text-sm font-medium hidden md:block">{user?.name?.split(' ')[0]}</span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+
+                  {userMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-dark-900 rounded-xl shadow-lg border border-gray-200 dark:border-dark-700 py-2 z-50">
+                        <div className="px-4 py-3 border-b border-gray-100 dark:border-dark-800">
+                          <p className="font-medium text-gray-900 dark:text-white text-sm">{user?.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                        </div>
+                        <Link
+                          to="/account"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors"
+                        >
+                          <User className="w-4 h-4" />
+                          My Account
+                        </Link>
+                        <Link
+                          to="/wishlist"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors"
+                        >
+                          <Heart className="w-4 h-4" />
+                          Wishlist
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Logout
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="hidden sm:block p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
+                  aria-label="Sign in"
+                >
+                  <User className="w-5 h-5" />
+                </Link>
+              )}
+
+              {/* Admin */}
+              <Link
+                to="/admin"
                 className="hidden sm:block p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
-                aria-label="Account"
+                aria-label="Admin Portal"
               >
-                <User className="w-5 h-5" />
-              </button>
+                <Shield className="w-5 h-5" />
+              </Link>
 
               {/* Wishlist */}
               <Link
@@ -189,6 +268,25 @@ export default function Navbar() {
             </button>
           </div>
 
+          {/* User info in mobile */}
+          {isAuthenticated && (
+            <div className="px-4 py-4 border-b border-gray-200 dark:border-dark-800">
+              <div className="flex items-center gap-3">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm">
+                    {userInitials}
+                  </div>
+                )}
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-white text-sm">{user?.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Drawer links */}
           <div className="px-2 py-4 space-y-1 overflow-y-auto">
             {navLinks.map((link) => (
@@ -205,6 +303,34 @@ export default function Navbar() {
                 {link.name}
               </Link>
             ))}
+
+            <div className="border-t border-gray-200 dark:border-dark-800 my-2" />
+
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/account"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-4 py-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800 hover:text-brand-500 transition-colors"
+                >
+                  My Account
+                </Link>
+                <button
+                  onClick={() => { handleLogout(); setMobileOpen(false); }}
+                  className="w-full text-left px-4 py-3 rounded-lg text-base font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                onClick={() => setMobileOpen(false)}
+                className="block px-4 py-3 rounded-lg text-base font-medium text-brand-500 hover:bg-brand-500/10 transition-colors"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       </div>
